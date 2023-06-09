@@ -18,6 +18,7 @@ from core.index.readers.xlsx_parser import XLSXParser
 from llama_index.readers.file.markdown_parser import MarkdownParser
 
 from core.data_source.notion import NotionPageReader
+from core.index.readers.xlsx_parser import XLSXParser
 from core.docstore.dataset_docstore import DatesetDocumentStore
 from core.index.keyword_table_index import KeywordTableIndex
 from core.index.readers.html_parser import HTMLParser

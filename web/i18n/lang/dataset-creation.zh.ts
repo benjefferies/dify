@@ -13,6 +13,7 @@ const translation = {
   },
   stepOne: {
     filePreview: '文件预览',
+    pagePreview: '页面预览',
     dataSourceType: {
       file: '导入已有文本',
       notion: '同步自 Notion 内容',
@@ -22,7 +23,7 @@ const translation = {
       title: '上传文本文件',
       button: '拖拽文件至此，或者',
       browse: '选择文件',
-      tip: '已支持 TXT, HTML, Markdown, PDF, XLSX, XLS',
+      tip: '已支持 TXT, HTML, Markdown, PDF, XLSX',
       validation: {
         typeError: '文件类型不支持',
         size: '文件太大了，不能超过 15MB',
@@ -32,6 +33,9 @@ const translation = {
       change: '更改文件',
       failed: '上传失败',
     },
+    notionSyncTitle: 'Notion 未绑定',
+    notionSyncTip: '同步 Notion 内容前，须先绑定 Notion 空间',
+    connect: '去绑定',
     button: '下一步',
     emptyDatasetCreation: '创建一个空数据集',
     modal: {

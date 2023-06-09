@@ -16,7 +16,7 @@ const NotionIcon = ({
 }: NotionIconProps) => {
   if (type === 'workspace') {
     if (src) {
-      if (src.includes('https://')) {
+      if (src.startsWith('https://') || src.startsWith('http://')) {
         return (
           <img
             alt='workspace icon'
@@ -35,16 +35,15 @@ const NotionIcon = ({
   }
 
   if (src) {
-    return (
-      <img
-        alt='workspace icon'
-        src={src}
-        className={cn('block object-cover w-5 h-5', className)}
-      />
-    )
-  }
-
-  if (name) {
+    if (src.startsWith('https://') || src.startsWith('http://')) {
+      return (
+        <img
+          alt='page icon'
+          src={src}
+          className={cn('block object-cover w-5 h-5', className)}
+        />
+      )
+    }
     return (
       <div className={cn('flex items-center justify-center w-5 h-5', className)}>{src}</div>
     )
