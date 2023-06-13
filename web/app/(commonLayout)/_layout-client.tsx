@@ -3,6 +3,7 @@ import type { FC } from 'react'
 import React, { useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter, useSelectedLayoutSegments } from 'next/navigation'
 import useSWR, { SWRConfig } from 'swr'
+import * as Sentry from '@sentry/react'
 import Header from '../components/header'
 import { fetchAppList } from '@/service/apps'
 import { fetchDatasets } from '@/service/datasets'
@@ -11,6 +12,23 @@ import Loading from '@/app/components/base/loading'
 import { AppContextProvider } from '@/context/app-context'
 import DatasetsContext from '@/context/datasets-context'
 import type { LangGeniusVersionResponse, UserProfileResponse } from '@/models/common'
+
+const isDevelopment = process.env.NODE_ENV === 'development'
+const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN
+if (!isDevelopment && SENTRY_DSN) {
+  console.log('init sentry')
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    integrations: [
+      new Sentry.BrowserTracing({
+      }),
+      new Sentry.Replay(),
+    ],
+    tracesSampleRate: 0.1,
+    replaysSessionSampleRate: 0.1,
+    replaysOnErrorSampleRate: 1.0,
+  })
+}
 
 export type ICommonLayoutProps = {
   children: React.ReactNode
