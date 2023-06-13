@@ -6,9 +6,10 @@ import { useBoolean } from 'ahooks'
 import { XMarkIcon } from '@heroicons/react/20/solid'
 import cn from 'classnames'
 import Link from 'next/link'
+import { groupBy } from 'lodash-es'
 import PreviewItem from './preview-item'
 import s from './index.module.css'
-import type { CreateDocumentReq, DataSourceType, File, FullDocumentDetail, FileIndexingEstimateResponse as IndexingEstimateResponse, PreProcessingRule, Rules, createDocumentResponse } from '@/models/datasets'
+import type { CreateDocumentReq, File, FullDocumentDetail, FileIndexingEstimateResponse as IndexingEstimateResponse, NotionInfo, PreProcessingRule, Rules, createDocumentResponse } from '@/models/datasets'
 import {
   createDocument,
   createFirstDocument,
@@ -20,6 +21,11 @@ import Loading from '@/app/components/base/loading'
 
 import Toast from '@/app/components/base/toast'
 import { formatNumber } from '@/utils/format'
+import type { DataSourceNotionPage } from '@/models/common'
+import { DataSourceType } from '@/models/datasets'
+import NotionIcon from '@/app/components/base/notion-icon'
+
+type Page = DataSourceNotionPage & { workspace_id: string }
 
 type StepTwoProps = {
   isSetting?: boolean
@@ -30,7 +36,7 @@ type StepTwoProps = {
   indexingType?: string
   dataSourceType: DataSourceType
   file?: File
-  notionPages?: any[]
+  notionPages?: Page[]
   onStepChange?: (delta: number) => void
   updateIndexingTypeCache?: (type: string) => void
   updateResultCache?: (res: createDocumentResponse) => void
@@ -56,6 +62,7 @@ const StepTwo = ({
   indexingType,
   dataSourceType,
   file,
+  notionPages = [],
   onStepChange,
   updateIndexingTypeCache,
   updateResultCache,
@@ -172,18 +179,54 @@ const StepTwo = ({
     return processRule
   }
 
+  const getNotionInfo = () => {
+    const workspacesMap = groupBy(notionPages, 'workspace_id')
+    const workspaces = Object.keys(workspacesMap).map((workspaceId) => {
+      return {
+        workspaceId,
+        pages: workspacesMap[workspaceId],
+      }
+    })
+    return workspaces.map((workspace) => {
+      return {
+        workspace_id: workspace.workspaceId,
+        pages: workspace.pages.map((page) => {
+          const { page_id, page_name, page_icon, type } = page
+          return {
+            page_id,
+            page_name,
+            page_icon,
+            type,
+          }
+        }),
+      }
+    }) as NotionInfo[]
+  }
+
   const getFileIndexingEstimateParams = () => {
-    // TODO
-    const params = {
-      info_list: {
-        data_source_type: dataSourceType,
-        file_info_list: [{
-          file_id: file?.id,
-        }],
-      },
-      dataset_id: datasetId,
-      indexing_technique: getIndexing_technique(),
-      process_rule: getProcessRule(),
+    let params
+    if (dataSourceType === DataSourceType.FILE) {
+      params = {
+        info_list: {
+          data_source_type: dataSourceType,
+          file_info_list: {
+            // TODO multi files
+            file_ids: [file?.id || ''],
+          },
+        },
+        indexing_technique: getIndexing_technique(),
+        process_rule: getProcessRule(),
+      }
+    }
+    if (dataSourceType === DataSourceType.NOTION) {
+      params = {
+        info_list: {
+          data_source_type: dataSourceType,
+          notion_info_list: getNotionInfo(),
+        },
+        indexing_technique: getIndexing_technique(),
+        process_rule: getProcessRule(),
+      }
     }
     return params
   }
@@ -200,14 +243,21 @@ const StepTwo = ({
       params = {
         data_source: {
           type: dataSourceType,
-          // name: file?.name,
-          info: [{
-            upload_file_id: file?.id,
-          }],
+          info_list: {
+            data_source_type: dataSourceType,
+          },
         },
         indexing_technique: getIndexing_technique(),
         process_rule: getProcessRule(),
       } as CreateDocumentReq
+      if (dataSourceType === DataSourceType.FILE) {
+        params.data_source.info_list.file_info_list = {
+          // TODO multi files
+          file_ids: [file?.id || ''],
+        }
+      }
+      if (dataSourceType === DataSourceType.NOTION)
+        params.data_source.info_list.notion_info_list = getNotionInfo()
     }
     return params
   }
@@ -275,6 +325,17 @@ const StepTwo = ({
     }
   }
 
+  const getIcon = () => {
+    let iconSrc
+    if (notionPages.length > 0) {
+      if (notionPages[0].page_icon && notionPages[0].page_icon.type === 'url')
+        iconSrc = notionPages[0].page_icon.url
+      if (notionPages[0].page_icon && notionPages[0].page_icon.type === 'emoji')
+        iconSrc = notionPages[0].page_icon.emoji
+    }
+    return iconSrc
+  }
+
   useEffect(() => {
     // fetch rules
     if (!isSetting) {
@@ -330,7 +391,6 @@ const StepTwo = ({
         <div className={cn(s.form)}>
           <div className={s.label}>{t('datasetCreation.stepTwo.segmentation')}</div>
           <div className='max-w-[640px]'>
-
             <div
               className={cn(
                 s.radioItem,
@@ -478,16 +538,41 @@ const StepTwo = ({
                 <Link className='text-[#155EEF]' href={`/datasets/${datasetId}/settings`}>{t('datasetCreation.stepTwo.datasetSettingLink')}</Link>
               </div>
             )}
-            <div className={s.file}>
-              <div className={s.fileContent}>
-                <div className='mb-2 text-xs font-medium text-gray-500'>{t('datasetCreation.stepTwo.fileName')}</div>
-                <div className='flex items-center text-sm leading-6 font-medium text-gray-800'>
-                  <span className={cn(s.fileIcon, file && s[file.extension])} />
-                  {getFileName(file?.name || '')}
-                </div>
+            {/* TODO multi files */}
+            <div className={s.source}>
+              <div className={s.sourceContent}>
+                {dataSourceType === DataSourceType.FILE && (
+                  <>
+                    <div className='mb-2 text-xs font-medium text-gray-500'>{t('datasetCreation.stepTwo.fileSource')}</div>
+                    <div className='flex items-center text-sm leading-6 font-medium text-gray-800'>
+                      <span className={cn(s.fileIcon, file && s[file.extension])} />
+                      {getFileName(file?.name || '')}
+                    </div>
+                  </>
+                )}
+                {dataSourceType === DataSourceType.NOTION && (
+                  <>
+                    <div className='mb-2 text-xs font-medium text-gray-500'>{t('datasetCreation.stepTwo.notionSource')}</div>
+                    <div className='flex items-center text-sm leading-6 font-medium text-gray-800'>
+                      <NotionIcon
+                        className='shrink-0 mr-1'
+                        type='page'
+                        src={getIcon()}
+                      />
+                      {notionPages[0]?.page_name}
+                      {notionPages.length > 1 && (
+                        <span className={s.sourceCount}>
+                          <span>{t('datasetCreation.stepTwo.other')}</span>
+                          <span>{notionPages.length - 1}</span>
+                          <span>{t('datasetCreation.stepTwo.notionUnit')}</span>
+                        </span>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
               <div className={s.divider} />
-              <div className={s.fileContent}>
+              <div className={s.segmentCount}>
                 <div className='mb-2 text-xs font-medium text-gray-500'>{t('datasetCreation.stepTwo.emstimateSegment')}</div>
                 <div className='flex items-center text-sm leading-6 font-medium text-gray-800'>
                   {
